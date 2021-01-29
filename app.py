@@ -64,6 +64,8 @@ def signup():
     If the there already is a user with that username: flash message
     and re-present form.
     """
+    if CURR_USER_KEY in session:
+        del session[CURR_USER_KEY]
 
     form = UserAddForm()
 
@@ -114,8 +116,8 @@ def logout():
     """Handle logout of user."""
 
     do_logout()
-    flash("You have successfully logged out!")
-    return redirect("/")
+    flash("You have successfully logged out!", "success")
+    return redirect("/login")
 
     # IMPLEMENT THIS
 
@@ -151,7 +153,6 @@ def users_show(user_id):
     messages = (Message
                 .query
                 .filter(Message.user_id == user_id)
-                .filter(user.following.user_following_id = user_following_id)
                 .order_by(Message.timestamp.desc())
                 .limit(100)
                 .all())
@@ -220,18 +221,22 @@ def profile():
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
+    user = g.user
     form = EditFor(obj = user)
 
     if form.validate_on_submit():
+        if User.authenticate(user.username, form.password.data):
         user.username = form.username.data
         user.email = form.email.data
-        user.image_url = form.image_url.data
+        user.image_url = form.image_url.dataor or "/static/images/default-pic.png"
         user.bio = form.bio.data
         user.location = form.location.data
+        user.header_image_url = form.header_image_url.data or "/static/images/warbler-hero.jpg"
         db.session.commit()
-        return redirect("/users/detail")
-    else:
-        return render_template(edit.html, form = form)
+        return redirect(f"/users/{user.id}")
+        flash("Incorrect password!", "danger")
+    
+    return render_template("users/edit.html", form = form, user_id = user.id)
 
 
     # IMPLEMENT THIS
@@ -315,6 +320,8 @@ def homepage():
     """
 
     if g.user:
+        following_ids = [f.id for f in g.user.following] + [g.user.id]
+        
         messages = (Message
                     .query
                     .order_by(Message.timestamp.desc())
