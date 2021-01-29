@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, flash, redirect, session, g
 from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
-from forms import UserAddForm, LoginForm, MessageForm
+from forms import UserAddForm, LoginForm, MessageForm, EditForm
 from models import db, connect_db, User, Message
 
 CURR_USER_KEY = "curr_user"
@@ -113,6 +113,10 @@ def login():
 def logout():
     """Handle logout of user."""
 
+    do_logout()
+    flash("You have successfully logged out!")
+    return redirect("/")
+
     # IMPLEMENT THIS
 
 
@@ -147,6 +151,7 @@ def users_show(user_id):
     messages = (Message
                 .query
                 .filter(Message.user_id == user_id)
+                .filter(user.following.user_following_id = user_following_id)
                 .order_by(Message.timestamp.desc())
                 .limit(100)
                 .all())
@@ -210,6 +215,24 @@ def stop_following(follow_id):
 @app.route('/users/profile', methods=["GET", "POST"])
 def profile():
     """Update profile for current user."""
+
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    form = EditFor(obj = user)
+
+    if form.validate_on_submit():
+        user.username = form.username.data
+        user.email = form.email.data
+        user.image_url = form.image_url.data
+        user.bio = form.bio.data
+        user.location = form.location.data
+        db.session.commit()
+        return redirect("/users/detail")
+    else:
+        return render_template(edit.html, form = form)
+
 
     # IMPLEMENT THIS
 
